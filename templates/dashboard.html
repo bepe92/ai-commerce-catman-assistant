@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bazarek Daily Ops Briefing — {{ target_date.strftime('%Y-%m-%d') }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-mark">⬢</span>
+      <span class="brand-name">Bazarek Ops Briefing</span>
+      <span class="brand-sub">5-agent AI daily report · SE · NO · DK · FI</span>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-meta">Multi-agent system · asyncio.gather()</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <h3>Past reports</h3>
+      {% if existing %}
+        <ul class="reports">
+          {% for d in existing %}
+            <li>
+              <a href="?date={{ d.strftime('%Y-%m-%d') }}"
+                 class="{% if d == target_date %}is-active{% endif %}">
+                {{ d.strftime('%Y-%m-%d') }}
+                <span class="day-of-week">{{ d.strftime('%a') }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted small">Brak wygenerowanych raportów.</p>
+      {% endif %}
+
+      <div class="agent-list">
+        <h3>Agents</h3>
+        <ul>
+          <li>🎯 <strong>Price Anomaly</strong> — offer ↔ product mismatch</li>
+          <li>💰 <strong>Deals Anomaly</strong> — >70% discount flagging</li>
+          <li>📊 <strong>Sales Anomaly</strong> — ±40% vs 7-day avg</li>
+          <li>📅 <strong>Event Manager</strong> — Nordic calendar (14d horizon)</li>
+          <li>🔥 <strong>Click Spike</strong> — viral vs anomaly detection</li>
+        </ul>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="controls card">
+        <form method="post" class="control-form">
+          <div class="control-group">
+            <label for="date-picker">Briefing date</label>
+            <input type="date" id="date-picker" name="date"
+                   value="{{ target_date.strftime('%Y-%m-%d') }}"
+                   onchange="this.form.submit()">
+          </div>
+
+          <input type="hidden" name="date" value="{{ target_date.strftime('%Y-%m-%d') }}">
+          <button type="submit" name="action" value="generate" class="btn btn--generate">
+            ⚡ Run daily analysis (5 agents · ~5s)
+          </button>
+        </form>
+
+        {% if runtime_sec %}
+          <div class="run-info">
+            ✅ 5 agentów odpaliło się równolegle w <strong>{{ runtime_sec }}s</strong>.
+            Wynik: price={{ counts.price }}, deals={{ counts.deals }},
+            sales={{ counts.sales }}, events={{ counts.events }}, clicks={{ counts.clicks }}.
+          </div>
+        {% endif %}
+
+        {% if error %}
+          <div class="alert alert--err">{{ error }}</div>
+        {% endif %}
+      </section>
+
+      <h1 class="page-title">{{ target_date | fmt_date }}</h1>
+
+      {% if report_html %}
+        <article class="report card">
+          {{ report_html | safe }}
+        </article>
+      {% else %}
+        <div class="placeholder card">
+          <p>Brak wygenerowanego raportu dla tej daty.</p>
+          <p class="muted small">Kliknij <strong>⚡ Run daily analysis</strong> — system odpali 5 agentów równolegle, każdy z osobnym promptem, i Claude Sonnet 4.6 skomponuje finalny raport HTML.</p>
+        </div>
+      {% endif %}
+    </main>
+  </div>
+
+  <footer class="footer">
+    <span>Bazarek Ops Briefing · 5 agents in parallel via <code>asyncio.gather()</code> · Pydantic-validated outputs</span>
+  </footer>
+</body>
+</html>
