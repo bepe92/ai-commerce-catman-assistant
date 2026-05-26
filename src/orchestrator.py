@@ -38,11 +38,15 @@ REPORT_DIR = Path(__file__).parent.parent / "output"
 
 
 # ──────────────────────────────────────────────────────────────
-#  EDIT THIS PROMPT to change how the final HTML report is composed
+#  Fallback in-code prompt. Production-grade behaviour loads the
+#  *editable* version from the sibling ai-prompt-manager repo so
+#  category managers can iterate without code changes.
 # ──────────────────────────────────────────────────────────────
-REPORT_SYSTEM_PROMPT = """Jesteś analitykiem operacyjnym dla category managerów platformy e-commerce Bazarek \
-(rynki nordyckie). Twoim zadaniem jest złożyć z surowych wyników 5 agentów AI jeden czytelny \
-HTML-owy raport poranny dla menedżera kategorii.
+_FALLBACK_REPORT_PROMPT = """Jesteś analitykiem operacyjnym dla category managerów platformy porównywarki/marketplace Bazarek \
+(rynki nordyckie). Platforma trackuje konwersje (transakcje finalizowane przez użytkowników \
+przekierowanych do partnerów), oferty partnerów, kliknięcia i ruch — NIE prowadzi sprzedaży własnej. \
+Twoim zadaniem jest złożyć z surowych wyników 5 agentów AI jeden czytelny HTML-owy raport poranny \
+dla category managera.
 
 WYMAGANY UKŁAD RAPORTU (3 sekcje):
 
@@ -51,18 +55,43 @@ WYMAGANY UKŁAD RAPORTU (3 sekcje):
 3. INFORMACYJNE — nadchodzące eventy, trendy, kontekst.
 
 ZASADY:
-- Czyste prosty HTML, bez <html>/<head>/<body> — tylko fragment do wstawienia w template.
+- Czysty prosty HTML, bez <html>/<head>/<body> — tylko fragment do wstawienia w template.
 - Używaj klas CSS: section.urgent, section.review, section.info, table.deals, ul.recs.
 - KAŻDY flagowany item musi mieć: nazwę produktu, kategorię, konkretną liczbę (kwota, %, etc.) \
   i jednozdaniowe wytłumaczenie. NIE pisz vague "produkt X ma anomalię" — pisz "LapBike Carbon Road \
-  obniżony o 85% (18 990 SEK → 2 849 SEK) — prawdopodobny błąd cenowy".
-- Ton: zwięzły, profesjonalny, "Bloomberg morning note" w domenie e-commerce.
+  obniżony w ofercie o 85% (18 990 SEK → 2 849 SEK) — prawdopodobny błąd cenowy partnera".
+- Ton: zwięzły, profesjonalny, "Bloomberg morning note" w domenie marketplace/comparison.
+- TERMINOLOGIA: pisz o "konwersjach", "wolumenie konwersji", "ofertach partnerów", "kliknięciach", \
+  "katalogu". NIE pisz "sprzedaż" / "sprzedaż własna" — Bazarek nie sprzedaje, tylko porównuje i \
+  trackuje finalizację u partnerów.
 - Język: polski.
 - NIE wymyślaj liczb. Tylko to co dostałeś w danych.
 - Każdy item miej w czytelnym formacie HTML (np. <div class="item">, <p>, <strong>).
 - Jeśli sekcja jest pusta, napisz krótko "Brak pozycji w tej sekcji."
 
 Otrzymujesz JSON z wynikami 5 agentów. Zwróć WYŁĄCZNIE fragment HTML, bez ``` i bez wyjaśnień."""
+
+
+def _load_report_prompt() -> str:
+    """Load the live report-composer prompt from the ai-prompt-manager sibling repo.
+
+    Sibling project layout is assumed to be ../ai-prompt-manager next to this one.
+    If the file is missing (standalone setup, prompt-manager not deployed), fall
+    back to the in-code constant above. This keeps the system bootable AND lets
+    a category manager iterate on the briefing prompt without touching Python.
+    """
+    pm_file = (Path(__file__).parent.parent.parent / "ai-prompt-manager"
+               / "prompts" / "ecommerce-ops" / "desk_briefing_composer.json")
+    if not pm_file.exists():
+        return _FALLBACK_REPORT_PROMPT
+    try:
+        import json
+        return json.loads(pm_file.read_text(encoding="utf-8"))["active_prompt"]
+    except Exception:
+        return _FALLBACK_REPORT_PROMPT
+
+
+REPORT_SYSTEM_PROMPT = _load_report_prompt()
 
 
 async def run_all(target_date: date | None = None) -> tuple[OrchestratorResult, str]:
