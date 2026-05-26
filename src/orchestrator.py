@@ -75,10 +75,15 @@ Otrzymujesz JSON z wynikami 5 agentów. Zwróć WYŁĄCZNIE fragment HTML, bez `
 def _load_report_prompt() -> str:
     """Load the live report-composer prompt from the ai-prompt-manager sibling repo.
 
-    Sibling project layout is assumed to be ../ai-prompt-manager next to this one.
-    If the file is missing (standalone setup, prompt-manager not deployed), fall
-    back to the in-code constant above. This keeps the system bootable AND lets
-    a category manager iterate on the briefing prompt without touching Python.
+    Called on EVERY orchestrator run (not just at import) so that a category
+    manager editing the prompt in the prompt-manager UI sees the effect on the
+    very next "Run daily analysis" click — no Flask restart needed. Cost: one
+    small disk read per run. Win: hot-reload of business logic.
+
+    Sibling project layout is assumed to be ../ai-prompt-manager next to this
+    one. If the file is missing (standalone setup, prompt-manager not deployed),
+    fall back to the in-code constant above. System stays bootable; the prompt
+    becomes editable when prompt-manager is co-located.
     """
     pm_file = (Path(__file__).parent.parent.parent / "ai-prompt-manager"
                / "prompts" / "ecommerce-ops" / "desk_briefing_composer.json")
@@ -89,9 +94,6 @@ def _load_report_prompt() -> str:
         return json.loads(pm_file.read_text(encoding="utf-8"))["active_prompt"]
     except Exception:
         return _FALLBACK_REPORT_PROMPT
-
-
-REPORT_SYSTEM_PROMPT = _load_report_prompt()
 
 
 async def run_all(target_date: date | None = None) -> tuple[OrchestratorResult, str]:
@@ -138,8 +140,11 @@ async def _safe(coro, expected_type: type[AgentReport]) -> AgentReport:
 
 
 async def _compose_html(aggregated: OrchestratorResult) -> str:
+    # Re-read the prompt fresh on every run so prompt-manager edits take
+    # effect on the next click — no Flask restart needed.
+    prompt = _load_report_prompt()
     payload = aggregated.model_dump()
-    return await ask_text(REPORT_SYSTEM_PROMPT, payload)
+    return await ask_text(prompt, payload)
 
 
 def save_report(target_date: date, html_fragment: str) -> Path:
