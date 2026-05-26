@@ -46,8 +46,17 @@ async def ask_json(system_prompt: str, user_payload: str | dict,
 
 
 async def ask_text(system_prompt: str, user_payload: str | dict,
-                   model: str = REPORT_MODEL, max_tokens: int = 3072) -> str:
-    """Send a prompt expecting free-form text (HTML) back."""
+                   model: str = REPORT_MODEL, max_tokens: int = 4096) -> str:
+    """Send a prompt expecting free-form text (HTML) back.
+
+    Default raised from 3072 → 4096 after observing that Sonnet 4.6 occasionally
+    expanded the briefing prose (extra context blocks, longer item descriptions)
+    and ran out of budget exactly when writing the Daily Spotlight at the tail
+    of INFORMACYJNE — leaving an unclosed <em> tag and a broken render. 4096
+    gives ~30% headroom for variable-length composition without hitting the
+    cap. Cost impact per run: trivial (~5% increase on output tokens which is
+    fractions of a cent on Sonnet).
+    """
     client = get_client()
     payload_str = user_payload if isinstance(user_payload, str) else json.dumps(user_payload, ensure_ascii=False)
 
